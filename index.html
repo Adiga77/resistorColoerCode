@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resistor Color Code Calculator</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      padding-top: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .card {
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      border: none;
+    }
+    
+    .card-header {
+      background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+      color: white;
+      border-bottom: none;
+      padding: 20px;
+    }
+    
+    .resistor-display {
+      height: 120px;
+      background-color: #f8f9fa;
+      border-radius: 10px;
+      position: relative;
+      margin: 20px 0;
+      overflow: hidden;
+    }
+    
+    .resistor-body {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80%;
+      height: 40px;
+      background-color: #e9e2d0;
+      border-radius: 5px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .resistor-lead {
+      position: absolute;
+      top: 50%;
+      width: 15%;
+      height: 4px;
+      background-color: #b0b0b0;
+      transform: translateY(-50%);
+    }
+    
+    .resistor-lead.left {
+      left: 0;
+    }
+    
+    .resistor-lead.right {
+      right: 0;
+    }
+    
+    .color-band {
+      width: 8%;
+      height: 100%;
+      display: inline-block;
+    }
+    
+    .selected-colors {
+      padding: 15px;
+      background-color: rgba(255, 255, 255, 0.7);
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+    
+    .color-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 15px;
+    }
+    
+    .color-option {
+      width: 40px;
+      height: 40px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .color-option:hover {
+      transform: scale(1.1);
+    }
+    
+    .value-display {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-top: 20px;
+      text-align: center;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.8);
+    }
+    
+    .color-circle {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    
+    .band-controls {
+      margin: 20px 0;
+    }
+    
+    .tooltip-info {
+      cursor: help;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-10 col-lg-8">
+        <div class="card">
+          <div class="card-header text-center">
+            <h2><i class="bi bi-lightning-fill"></i> Resistor Color Code Calculator</h2>
+            <p class="mb-0">Calculate resistance values using the standard color code system</p>
+          </div>
+          <div class="card-body">
+            <div class="resistor-display">
+              <div class="resistor-lead left"></div>
+              <div class="resistor-body" id="resistor-display">
+                <!-- Color bands will be inserted here -->
+              </div>
+              <div class="resistor-lead right"></div>
+            </div>
+            
+            <div class="band-controls">
+              <div class="form-group mb-3">
+                <label for="bandCount" class="form-label">Band Count:</label>
+                <select class="form-select" id="bandCount">
+                  <option value="4">4 Band Resistor</option>
+                  <option value="5">5 Band Resistor</option>
+                  <option value="6">6 Band Resistor</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-12">
+                <div class="band-selection">
+                  <div id="bands-container">
+                    <!-- Band selectors will be inserted here -->
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="value-display" id="result">
+              Resistance: <span id="resistance-value">-- Ω</span>
+              <br>
+              <span id="tolerance">Tolerance: ±--</span>
+              <span id="temperature-coefficient" class="d-none">Temp. Coefficient: -- ppm/°C</span>
+            </div>
+            
+            <div class="mt-4">
+              <div class="card">
+                <div class="card-body">
+                  <h5 class="card-title">How to Use</h5>
+                  <ol>
+                    <li>Select the number of bands your resistor has (4, 5, or 6)</li>
+                    <li>Choose the appropriate color for each band</li>
+                    <li>The calculator will automatically show the resistance value, tolerance, and temperature coefficient (if applicable)</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Color definitions
+      const colorValues = {
+        black: { value: 0, multiplier: 1, display: "Black" },
+        brown: { value: 1, multiplier: 10, tolerance: 1, tempco: 100, display: "Brown" },
+        red: { value: 2, multiplier: 100, tolerance: 2, tempco: 50, display: "Red" },
+        orange: { value: 3, multiplier: 1000, tempco: 15, display: "Orange" },
+        yellow: { value: 4, multiplier: 10000, tempco: 25, display: "Yellow" },
+        green: { value: 5, multiplier: 100000, tolerance: 0.5, tempco: 20, display: "Green" },
+        blue: { value: 6, multiplier: 1000000, tolerance: 0.25, tempco: 10, display: "Blue" },
+        violet: { value: 7, multiplier: 10000000, tolerance: 0.1, tempco: 5, display: "Violet" },
+        grey: { value: 8, multiplier: 100000000, tolerance: 0.05, tempco: 1, display: "Grey" },
+        white: { value: 9, multiplier: 1000000000, display: "White" },
+        gold: { multiplier: 0.1, tolerance: 5, display: "Gold" },
+        silver: { multiplier: 0.01, tolerance: 10, display: "Silver" },
+        none: { tolerance: 20, display: "None" }
+      };
+      
+      const colorHexCodes = {
+        black: "#000000",
+        brown: "#8B4513",
+        red: "#FF0000",
+        orange: "#FFA500",
+        yellow: "#FFFF00",
+        green: "#008000",
+        blue: "#0000FF",
+        violet: "#8A2BE2",
+        grey: "#808080",
+        white: "#FFFFFF",
+        gold: "#FFD700",
+        silver: "#C0C0C0",
+        none: "transparent"
+      };
+      
+      // Default settings
+      let bandCount = 4;
+      let selectedColors = Array(6).fill("none");
+      
+      // Initialize the calculator
+      initCalculator();
+      
+      // Event listeners
+      document.getElementById("bandCount").addEventListener("change", function() {
+        bandCount = parseInt(this.value);
+        initCalculator();
+      });
+      
+      function initCalculator() {
+        // Reset selections for the new band count
+        selectedColors = Array(6).fill("none");
+        
+        // Generate band selectors
+        generateBandSelectors();
+        
+        // Update resistor display
+        updateResistorDisplay();
+        
+        // Calculate initial value
+        calculateResistance();
+      }
+      
+      function generateBandSelectors() {
+        const bandsContainer = document.getElementById("bands-container");
+        bandsContainer.innerHTML = "";
+        
+        const maxBands = bandCount;
+        
+        // Create row
+        const row = document.createElement("div");
+        row.className = "row";
+        
+        // Create selectors for each band
+        for (let i = 0; i < maxBands; i++) {
+          const col = document.createElement("div");
+          col.className = "col-md-" + (12 / maxBands);
+          
+          const formGroup = document.createElement("div");
+          formGroup.className = "form-group mb-3";
+          
+          const label = document.createElement("label");
+          label.className = "form-label";
+          
+          // Set appropriate label based on band position and count
+          if (i === 0) label.textContent = "1st Band";
+          else if (i === 1) label.textContent = "2nd Band";
+          else if (i === 2 && bandCount < 6) label.textContent = "Multiplier";
+          else if (i === 2) label.textContent = "3rd Band";
+          else if (i === 3 && bandCount < 6) label.textContent = "Tolerance";
+          else if (i === 3) label.textContent = "Multiplier";
+          else if (i === 4) label.textContent = "Tolerance";
+          else if (i === 5) label.textContent = "Temp. Coef.";
+          
+          formGroup.appendChild(label);
+          
+          // Create color picker
+          const colorPicker = document.createElement("div");
+          colorPicker.className = "color-picker";
+          
+          // Determine which colors to show based on band position
+          let availableColors = Object.keys(colorValues);
+          
+          if (i === 3 && bandCount === 4) {
+            // Tolerance band for 4-band resistor
+            availableColors = availableColors.filter(color => 
+              colorValues[color].tolerance !== undefined);
+          } else if (i === 4) {
+            // Tolerance band for 5 and 6-band resistors
+            availableColors = availableColors.filter(color => 
+              colorValues[color].tolerance !== undefined);
+          } else if (i === 5) {
+            // Temperature coefficient band for 6-band resistors
+            availableColors = availableColors.filter(color => 
+              colorValues[color].tempco !== undefined);
+          } else if (i === 2 && bandCount < 6) {
+            // Multiplier band
+            availableColors = availableColors.filter(color => 
+              colorValues[color].multiplier !== undefined);
+          } else if (i === 3 && bandCount > 4) {
+            // Multiplier band for 5 and 6-band resistors
+            availableColors = availableColors.filter(color => 
+              colorValues[color].multiplier !== undefined);
+          } else {
+            // Significant digit bands
+            availableColors = availableColors.filter(color => 
+              colorValues[color].value !== undefined);
+          }
+          
+          // Create color options
+          availableColors.forEach(color => {
+            if (color === "none" && i < 3) return; // Skip "none" for significant digits
+            
+            const colorOption = document.createElement("div");
+            colorOption.className = "color-option";
+            colorOption.style.backgroundColor = colorHexCodes[color];
+            colorOption.style.border = color === "white" || color === "none" ? "1px solid #ccc" : "none";
+            colorOption.dataset.color = color;
+            colorOption.dataset.band = i;
+            
+            colorOption.addEventListener("click", function() {
+              const bandIndex = parseInt(this.dataset.band);
+              const selectedColor = this.dataset.color;
+              
+              selectedColors[bandIndex] = selectedColor;
+              updateResistorDisplay();
+              calculateResistance();
+            });
+            
+            colorPicker.appendChild(colorOption);
+          });
+          
+          formGroup.appendChild(colorPicker);
+          col.appendChild(formGroup);
+          row.appendChild(col);
+        }
+        
+        bandsContainer.appendChild(row);
+      }
+      
+      function updateResistorDisplay() {
+        const resistorDisplay = document.getElementById("resistor-display");
+        resistorDisplay.innerHTML = "";
+        
+        // Display bands based on the current band count
+        const displayBandCount = bandCount;
+        
+        for (let i = 0; i < displayBandCount; i++) {
+          const colorBand = document.createElement("div");
+          colorBand.className = "color-band";
+          colorBand.style.backgroundColor = colorHexCodes[selectedColors[i]];
+          
+          // Calculate position based on the number of bands
+          if (displayBandCount === 4) {
+            // 4-band resistor spacing
+            if (i === 0) colorBand.style.marginLeft = "15%";
+            else if (i === 1) colorBand.style.marginLeft = "5%";
+            else if (i === 2) colorBand.style.marginLeft = "5%";
+            else if (i === 3) colorBand.style.marginLeft = "25%";
+          } else if (displayBandCount === 5) {
+            // 5-band resistor spacing
+            if (i === 0) colorBand.style.marginLeft = "10%";
+            else if (i === 1) colorBand.style.marginLeft = "5%";
+            else if (i === 2) colorBand.style.marginLeft = "5%";
+            else if (i === 3) colorBand.style.marginLeft = "5%";
+            else if (i === 4) colorBand.style.marginLeft = "20%";
+          } else {
+            // 6-band resistor spacing
+            if (i === 0) colorBand.style.marginLeft = "8%";
+            else if (i === 1) colorBand.style.marginLeft = "4%";
+            else if (i === 2) colorBand.style.marginLeft = "4%";
+            else if (i === 3) colorBand.style.marginLeft = "4%";
+            else if (i === 4) colorBand.style.marginLeft = "14%";
+            else if (i === 5) colorBand.style.marginLeft = "4%";
+          }
+          
+          resistorDisplay.appendChild(colorBand);
+        }
+      }
+      
+      function calculateResistance() {
+        let significantDigits = "";
+        let multiplier = 1;
+        let tolerance = 20; // Default tolerance
+        let tempCoef = null;
+        
+        // Get the resistance value
+        if (bandCount === 4) {
+          // 4-band resistor
+          if (selectedColors[0] !== "none" && colorValues[selectedColors[0]].value !== undefined)
+            significantDigits += colorValues[selectedColors[0]].value;
+          if (selectedColors[1] !== "none" && colorValues[selectedColors[1]].value !== undefined)
+            significantDigits += colorValues[selectedColors[1]].value;
+          
+          if (selectedColors[2] !== "none" && colorValues[selectedColors[2]].multiplier !== undefined)
+            multiplier = colorValues[selectedColors[2]].multiplier;
+          
+          if (selectedColors[3] !== "none" && colorValues[selectedColors[3]].tolerance !== undefined)
+            tolerance = colorValues[selectedColors[3]].tolerance;
+        } else if (bandCount === 5) {
+          // 5-band resistor
+          if (selectedColors[0] !== "none" && colorValues[selectedColors[0]].value !== undefined)
+            significantDigits += colorValues[selectedColors[0]].value;
+          if (selectedColors[1] !== "none" && colorValues[selectedColors[1]].value !== undefined)
+            significantDigits += colorValues[selectedColors[1]].value;
+          if (selectedColors[2] !== "none" && colorValues[selectedColors[2]].value !== undefined)
+            significantDigits += colorValues[selectedColors[2]].value;
+          
+          if (selectedColors[3] !== "none" && colorValues[selectedColors[3]].multiplier !== undefined)
+            multiplier = colorValues[selectedColors[3]].multiplier;
+          
+          if (selectedColors[4] !== "none" && colorValues[selectedColors[4]].tolerance !== undefined)
+            tolerance = colorValues[selectedColors[4]].tolerance;
+        } else if (bandCount === 6) {
+          // 6-band resistor
+          if (selectedColors[0] !== "none" && colorValues[selectedColors[0]].value !== undefined)
+            significantDigits += colorValues[selectedColors[0]].value;
+          if (selectedColors[1] !== "none" && colorValues[selectedColors[1]].value !== undefined)
+            significantDigits += colorValues[selectedColors[1]].value;
+          if (selectedColors[2] !== "none" && colorValues[selectedColors[2]].value !== undefined)
+            significantDigits += colorValues[selectedColors[2]].value;
+          
+          if (selectedColors[3] !== "none" && colorValues[selectedColors[3]].multiplier !== undefined)
+            multiplier = colorValues[selectedColors[3]].multiplier;
+          
+          if (selectedColors[4] !== "none" && colorValues[selectedColors[4]].tolerance !== undefined)
+            tolerance = colorValues[selectedColors[4]].tolerance;
+          
+          if (selectedColors[5] !== "none" && colorValues[selectedColors[5]].tempco !== undefined)
+            tempCoef = colorValues[selectedColors[5]].tempco;
+        }
+        
+        // Calculate the resistance value
+        let resistance = 0;
+        if (significantDigits !== "") {
+          resistance = parseInt(significantDigits) * multiplier;
+        }
+        
+        // Format and display the resistance value
+        document.getElementById("resistance-value").innerText = formatResistance(resistance);
+        document.getElementById("tolerance").innerText = `Tolerance: ±${tolerance}%`;
+        
+        // Display temperature coefficient if available
+        const tempCoefElement = document.getElementById("temperature-coefficient");
+        if (tempCoef !== null && bandCount === 6) {
+          tempCoefElement.innerText = `Temp. Coefficient: ${tempCoef} ppm/°C`;
+          tempCoefElement.classList.remove("d-none");
+        } else {
+          tempCoefElement.classList.add("d-none");
+        }
+      }
+      
+      function formatResistance(value) {
+        if (value === 0) return "0 Ω";
+        
+        if (value >= 1000000) {
+          return (value / 1000000).toFixed(2) + " MΩ";
+        } else if (value >= 1000) {
+          return (value / 1000).toFixed(2) + " kΩ";
+        } else {
+          return value.toFixed(2) + " Ω";
+        }
+      }
+    });
+  </script>
+</body>
+</html>
